@@ -1,6 +1,5 @@
 package examples
 
-
 import scala.annotation.compileTimeOnly
 import scala.meta._
 

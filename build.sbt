@@ -3,7 +3,7 @@ scalaVersion in ThisBuild := "2.11.8"
 // To find the latest version, see MetaVersion in https://github.com/scalameta/paradise/blob/master/build.sbt
 lazy val metaVersion = "1.3.0.522"
 // To find the latest PR number, see https://github.com/scalameta/paradise/commits/master
-lazy val latestPullRequestNumber = 109
+lazy val latestPullRequestNumber = 122
 lazy val paradiseVersion = s"3.0.0.$latestPullRequestNumber"
 
 lazy val compilerOptions = Seq[String]() // Include your favorite compiler flags here.
@@ -13,6 +13,8 @@ lazy val metaMacroSettings: Seq[Def.Setting[_]] = Seq(
     "scalameta",
     url("http://dl.bintray.com/scalameta/maven"))(Resolver.ivyStylePatterns),
   libraryDependencies += "org.scalameta" %% "scalameta" % metaVersion,
+  libraryDependencies += "com.chuusai" %% "shapeless" % "2.3.2",
+  libraryDependencies += "org.typelevel" %% "cats" % "0.7.2",
   sources in (Compile, doc) := Nil,
   addCompilerPlugin(
     "org.scalameta" % "paradise" % paradiseVersion cross CrossVersion.full),
