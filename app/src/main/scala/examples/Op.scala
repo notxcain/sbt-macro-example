@@ -1,5 +1,7 @@
 package examples
 
+import examples.FooOp.ForF
+
 
 @value class PurchaseOrderId
 @value class UserId
@@ -21,9 +23,20 @@ object PurchaseOrderAggregateOp {
 
 }
 
+@free sealed trait FooOp[A]
+object FooOp {
+
+  final case class StringOp(string: String)
+    extends FooOp[String]
+
+  final case class AOp[A](a: A)
+    extends FooOp[A]
+
+}
+
 @main object App {
-  new PurchaseOrderAggregateOp.ForF[List] {
-    def submitPurchaseOrder(purchaseOrderId: PurchaseOrderId, userId: UserId, items: List[PurchaseOrderItem]): List[Either[String, Unit]] = ???
-    def markPurchaseOrderAsInvoiced[A](purchaseOrderId: PurchaseOrderId, invoiceId: InvoiceId, l: List[A]): List[Either[String, A]] = ???
+  val f = new ForF[List] {
+    def stringOp(string: String): List[String] = Nil
+    def aOp[A](a: A): List[A] = Nil
   }
 }

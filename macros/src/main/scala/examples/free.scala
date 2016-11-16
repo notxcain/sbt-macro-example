@@ -18,11 +18,14 @@ class free extends scala.annotation.StaticAnnotation {
         val newStats =
           FreeMacro.mkTraitF(name, subTypes) +: oldTemplStats
 
+        println(newStats)
 
         val newCompanion =
           companion.copy(templ = companion.templ.copy(stats = Some(newStats)))
-        println(newCompanion)
-        Term.Block(Seq(t, newCompanion))
+
+        val out = Term.Block(Seq(t, newCompanion))
+        println(out)
+        out
     }
   }
 }
@@ -60,9 +63,7 @@ object ClassOrTraitWithOneTypeParameter {
   def unapply(any: Defn): Option[(Seq[Mod], Type.Name)] = any match {
     case t: Defn.Class if t.tparams.length == 1 => Some((t.mods, t.name))
     case t: Defn.Trait if t.tparams.length == 1 => Some((t.mods, t.name))
-    case x             =>
-      println(x)
-      None
+    case x             => None
   }
 }
 
