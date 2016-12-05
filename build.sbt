@@ -2,9 +2,9 @@
 scalaVersion in ThisBuild := "2.11.8"
 
 // To find the latest version, see MetaVersion in https://github.com/scalameta/paradise/blob/master/build.sbt
-lazy val metaVersion = "1.3.0.522"
+lazy val metaVersion = "1.4.0.544"
 // To find the latest PR number, see https://github.com/scalameta/paradise/commits/master
-lazy val latestPullRequestNumber = 122
+lazy val latestPullRequestNumber = 132
 lazy val paradiseVersion = s"3.0.0.$latestPullRequestNumber"
 
 lazy val compilerOptions = Seq[String]() // Include your favorite compiler flags here.

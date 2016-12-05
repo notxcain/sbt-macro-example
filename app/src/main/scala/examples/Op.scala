@@ -23,14 +23,15 @@ object PurchaseOrderAggregateOp {
 
 }
 
+
 @free sealed trait FooOp[A]
 object FooOp {
 
   final case class StringOp(string: String)
-    extends FooOp[String]
+    extends FooOp[Int Either String]
 
   final case class AOp[A](a: A)
-    extends FooOp[A]
+    extends FooOp[Unit Either A]
 
 }
 
