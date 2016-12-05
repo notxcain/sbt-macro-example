@@ -1,6 +1,7 @@
 package examples
 
-import examples.FooOp.ForF
+import cats.{Id, ~>}
+import examples.FooOp.{AOp, StringOp}
 
 
 @value class PurchaseOrderId
@@ -36,8 +37,8 @@ object FooOp {
 }
 
 @main object App {
-  val f = new ForF[List] {
-    def stringOp(string: String): List[String] = Nil
-    def aOp[A](a: A): List[A] = Nil
+  @poly def fooOpToId[A](fooOp: FooOp[A]): Id[A] = fooOp match {
+    case StringOp(string) => Right(string)
+    case AOp(a) => Left(())
   }
 }
