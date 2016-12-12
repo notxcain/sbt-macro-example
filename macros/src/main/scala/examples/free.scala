@@ -18,15 +18,55 @@ class free extends scala.annotation.StaticAnnotation {
         val newStats =
           FreeMacro.mkTraitF(name, subTypes) +: oldTemplStats
 
-        println(newStats)
-
         val newCompanion =
           companion.copy(templ = companion.templ.copy(stats = Some(newStats)))
 
-        val out = Term.Block(Seq(t, newCompanion))
-        println(out)
-        out
+        Term.Block(Seq(t, newCompanion))
     }
+  }
+}
+
+class genfree extends scala.annotation.StaticAnnotation {
+  inline def apply(defn: Any): Any = meta {
+    defn match {
+      case Term.Block(Seq(t: Defn.Trait, companion: Defn.Object)) =>
+        FreeGenMacro.gen(t, Some(companion))
+      case t: Defn.Trait =>
+        FreeGenMacro.gen(t, None)
+    }
+  }
+}
+
+object FreeGenMacro {
+  def gen(t: Defn.Trait, companion: Option[Defn.Object]): Term.Block = {
+    println(s"IN: $t $companion")
+    val opsName = s"${t.name.value}Free"
+
+    val stats = t.templ.stats.get.map {
+      case q"def $name[..$tps]($params): F[$out]" =>
+        q"final case class ${Type.Name(name.value.capitalize)}[..$tps]($params) extends ${Ctor.Name(opsName)}[$out]"
+    }
+
+    val out: Seq[Stat] = Seq(
+      q"""sealed abstract class ${Type.Name(opsName)}[A] extends Product with Serializable""",
+          q"""object ${Term.Name(opsName)} {
+            ..$stats
+          }
+          """)
+
+
+    val newCompanion = companion match {
+      case Some(c) =>
+        val oldTemplStats = c.templ.stats.getOrElse(Nil)
+          c.copy(templ = c.templ.copy(stats = Some(out ++ oldTemplStats)))
+      case None =>
+        q"object ${Term.Name(t.name.value)} { ..$out }": Defn.Object
+
+    }
+
+    val result = Term.Block(Seq(t, newCompanion))
+    println(s"OUT: $result")
+    result
   }
 }
 

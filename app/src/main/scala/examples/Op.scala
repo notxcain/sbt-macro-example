@@ -1,5 +1,6 @@
 package examples
 
+import cats.free.Free
 import cats.{Id, ~>}
 import examples.FooOp.{AOp, StringOp}
 
@@ -32,13 +33,24 @@ object FooOp {
     extends FooOp[Int Either String]
 
   final case class AOp[A](a: A)
-    extends FooOp[Unit Either A]
+    extends FooOp[Either[Unit, A]]
 
 }
 
-@main object App {
-  @poly def fooOpToId[A](fooOp: FooOp[A]): Id[A] = fooOp match {
-    case StringOp(string) => Right(string)
-    case AOp(a) => Left(())
+@genfree trait FooOps[F[_]] {
+  def stringOp(string: String): F[Int Either String]
+  def aOp[A](a: A): F[Either[Unit, A]]
+}
+
+
+object App {
+  def main(args: Array[String]): Unit = {
+    @poly def fooOpToId[A](fooOp: FooOp[A]): Id[A] = fooOp match {
+      case StringOp(string) => Right(string)
+      case AOp(a) => Left(())
+    }
+    FooOps.FooOpsFree.getClass
+    val free = Free.liftF[FooOp, Either[Int, String]](FooOp.StringOp("test"))
+    println(free.foldMap(fooOpToId))
   }
 }
