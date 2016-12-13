@@ -1,56 +1,32 @@
 package examples
 
+import cats.Eval
+import cats.data.{ State, StateT }
 import cats.free.Free
-import cats.{Id, ~>}
-import examples.FooOp.{AOp, StringOp}
-
 
 @value class PurchaseOrderId
 @value class UserId
 @value class PurchaseOrderItem
 @value class InvoiceId
 
-@free sealed trait PurchaseOrderAggregateOp[A]
-
-object PurchaseOrderAggregateOp {
-
-  final case class SubmitPurchaseOrder(purchaseOrderId: PurchaseOrderId,
-                                       userId: UserId,
-                                       items: List[PurchaseOrderItem])
-    extends PurchaseOrderAggregateOp[String Either Unit]
-
-  final case class MarkPurchaseOrderAsInvoiced[A](purchaseOrderId: PurchaseOrderId,
-                                               invoiceId: InvoiceId, l: List[A])
-    extends PurchaseOrderAggregateOp[String Either A]
-
+@free
+trait KeyValueStore[F[_]] {
+  def setValue(key: String, value: String): F[Unit]
+  def getValue(key: String): F[Option[String]]
 }
-
-
-@free sealed trait FooOp[A]
-object FooOp {
-
-  final case class StringOp(string: String)
-    extends FooOp[Int Either String]
-
-  final case class AOp[A](a: A)
-    extends FooOp[Either[Unit, A]]
-
-}
-
-@genfree trait FooOps[F[_]] {
-  def stringOp(string: String): F[Int Either String]
-  def aOp[A](a: A): F[Either[Unit, A]]
-}
-
 
 object App {
+  import examples.KeyValueStore._
   def main(args: Array[String]): Unit = {
-    @poly def fooOpToId[A](fooOp: FooOp[A]): Id[A] = fooOp match {
-      case StringOp(string) => Right(string)
-      case AOp(a) => Left(())
-    }
-    FooOps.FooOpsFree.getClass
-    val free = Free.liftF[FooOp, Either[Int, String]](FooOp.StringOp("test"))
-    println(free.foldMap(fooOpToId))
+
+    def kvState[A](fooOp: KeyValueStore.KeyValueStoreFree[A]): State[Map[String, String], A] =
+      fooOp match {
+        case KeyValueStoreFree.SetValue(key, value) =>
+          StateT.modify[Eval, Map[String, String]](_.updated(key, value))
+        case KeyValueStoreFree.GetValue(key) => StateT.inspect(_.get(key))
+      }
+
+    val freeProgram = Free.liftF(KeyValueStoreFree.SetValue("k", "v"))
+//    println(freeProgram.foldMap(kvState))
   }
 }
