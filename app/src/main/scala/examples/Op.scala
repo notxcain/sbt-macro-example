@@ -98,7 +98,7 @@ object App {
   import examples.KeyValueStore._
   def main(args: Array[String]): Unit = {
 
-    def setAndGetPreviosValue[F[_]: Monad: KeyValueStore: Logging](
+    def setAndGetPreviousValue[F[_]: Monad: KeyValueStore: Logging](
       key: String,
       value: String
     ): F[Option[String]] =
@@ -113,7 +113,7 @@ object App {
       for {
         key <- UserInteraction[F].readLn("Enter key: ")
         value <- UserInteraction[F].readLn("Enter value: ")
-        previous <- setAndGetPreviosValue[F](key, value)
+        previous <- setAndGetPreviousValue[F](key, value)
         _ <- UserInteraction[F].writeLn(
               previous.map(s => s"Previous value was $s").getOrElse("Previous value was not set")
             )
