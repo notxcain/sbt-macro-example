@@ -72,9 +72,10 @@ object App {
         key <- UserInteraction[F].readLn("Enter key: ")
         value <- UserInteraction[F].readLn("Enter value: ")
         previous <- setAndGetPreviousValue[F](key, value)
-        _ <- UserInteraction[F].writeLn(
-              previous.map(s => s"Previous value was $s").getOrElse("Previous value was not set")
-            )
+        message = previous
+          .map(s => s"Previous value was $s")
+          .getOrElse("Previous value was not set")
+        _ <- UserInteraction[F].writeLn(message)
         exit <- UserInteraction[F].readLn("Exit? (y/n): ").map(_ == "y")
         _ <- if (exit) {
               Monad[F].pure()
