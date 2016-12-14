@@ -117,7 +117,12 @@ object App {
         _ <- UserInteraction[F].writeLn(
               previous.map(s => s"Previous value was $s").getOrElse("Previous value was not set")
             )
-        _ <- program[F]
+        exit <- UserInteraction[F].readLn("Exit? (y/n): ").map(_ == "y")
+        _ <- if (exit) {
+              Monad[F].pure()
+            } else {
+              program[F]
+            }
       } yield ()
 
     type Algebra[A] =
