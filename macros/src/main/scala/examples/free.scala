@@ -69,14 +69,14 @@ object FreeMacro {
       ,
         q"""
            private sealed trait $helperName[F[_]] {
-             type Out[A] = Free[F, A]
+             type Out[A] = _root_.cats.free.Free[F, A]
            }
          """
     ,
     q"""
        implicit def freeInstance[F[_]](implicit inject: _root_.cats.free.Inject[$freeTypeName, F]): ${t.name}[$helperName[F]#Out] =
          fromFunctionK(new _root_.cats.arrow.FunctionK[$freeTypeName, $helperName[F]#Out] {
-          def apply[A](op: $freeTypeName[A]): Free[F, A] = _root_.cats.free.Free.inject(op)
+          def apply[A](op: $freeTypeName[A]): _root_.cats.free.Free[F, A] = _root_.cats.free.Free.inject(op)
          })
      """)
 
