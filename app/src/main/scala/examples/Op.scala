@@ -3,16 +3,11 @@ package examples
 import cats.data.{ Coproduct, State, StateT }
 import cats.free.{ Free, Inject }
 import cats.implicits._
-import cats.{ Applicative, Eval, Monad, data }
+import cats.{ Applicative, Eval, Monad }
 import examples.Logging.LoggingFree
 import examples.UserInteraction.UserInteractionFree
 
 import scala.io.StdIn
-
-@value class PurchaseOrderId
-@value class UserId
-@value class PurchaseOrderItem
-@value class InvoiceId
 
 @free
 trait KeyValueStore[F[_]] {
