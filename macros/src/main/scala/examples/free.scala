@@ -28,6 +28,7 @@ object FreeMacro {
     }
 
     def toCaseName(name: Term.Name) = s"$freeName.${name.value.capitalize}"
+    val freeTypeName = Type.Name(freeName)
 
     val methods = traitStats.map {
       case q"def $name[..$tps](..$params): F[$out]" =>
@@ -44,30 +45,38 @@ object FreeMacro {
         p"case $caseName(..$exractArgs) => ops.$methodName(..$args)"
     }
 
+    val helperName = Type.fresh("FreeHelper")
+
     val companionStats: Seq[Stat] = Seq(
-      q"""sealed abstract class ${Type.Name(freeName)}[A] extends Product with Serializable""",
+      q"def apply[F[_]](implicit instance: ${t.name}[F]): ${t.name}[F] = instance",
+      q"sealed abstract class $freeTypeName[A] extends Product with Serializable",
       q"""object ${Term.Name(freeName)} {
         ..$cases
       }
       """
-      ,q"""def fromFunctionK[F[_]](f: _root_.cats.arrow.FunctionK[${Type.Name(freeName)}, F]): ${t.name}[F] =
+      ,q"""def fromFunctionK[F[_]](f: _root_.cats.arrow.FunctionK[$freeTypeName, F]): ${t.name}[F] =
          new ${Ctor.Name(t.name.value)}[F] {
           ..$methods
           }
        """
     ,
-      q"""def toFunctionK[F[_]](ops: ${t.name}[F]): _root_.cats.arrow.FunctionK[${Type.Name(freeName)}, F] =
-         new _root_.cats.arrow.FunctionK[${Type.Name(freeName)}, F] {
-          def apply[A](op: ${Type.Name(freeName)}[A]): F[A] =
+      q"""def toFunctionK[F[_]](ops: ${t.name}[F]): _root_.cats.arrow.FunctionK[$freeTypeName, F] =
+         new _root_.cats.arrow.FunctionK[$freeTypeName, F] {
+          def apply[A](op: $freeTypeName[A]): F[A] =
             op match { ..case $patMatCases }
          }
        """
+      ,
+        q"""
+           private sealed trait $helperName[F[_]] {
+                      type Out[A] = Free[F, A]
+           }
+         """
     ,
     q"""
-       implicit def free[F[_]](implicit inject: _root_.cats.free.Inject[${Type.Name(freeName)}, F]) = {
-         type FreeF[A] = Free[F, A]
-         val f = new _root_.cats.arrow.FunctionK[${Type.Name(freeName)}, FreeF] {
-           def apply[A](op: ${Type.Name(freeName)}[A]): Free[F, A] = _root_.cats.free.Free.inject(op)
+       implicit def free[F[_]](implicit inject: _root_.cats.free.Inject[$freeTypeName, F]): KeyValueStore[$helperName[F]#Out]  = {
+         val f = new _root_.cats.arrow.FunctionK[$freeTypeName, $helperName[F]#Out] {
+           def apply[A](op: $freeTypeName[A]): Free[F, A] = _root_.cats.free.Free.inject(op)
          }
          fromFunctionK(f)
        }

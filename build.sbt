@@ -1,5 +1,8 @@
 // scala.meta macros are at the moment only supported in 2.11.
 scalaVersion in ThisBuild := "2.11.8"
+scalaOrganization in ThisBuild := "org.typelevel"
+
+scalacOptions ++= compilerOptions
 
 // To find the latest version, see MetaVersion in https://github.com/scalameta/paradise/blob/master/build.sbt
 lazy val metaVersion = "1.4.0.549"
@@ -7,7 +10,13 @@ lazy val metaVersion = "1.4.0.549"
 lazy val latestPullRequestNumber = 140
 lazy val paradiseVersion = s"3.0.0.$latestPullRequestNumber"
 
-lazy val compilerOptions = Seq[String]() // Include your favorite compiler flags here.
+lazy val compilerOptions = Seq[String](
+  "-Ypartial-unification",
+  "-language:existentials",
+  "-language:higherKinds",
+  "-language:implicitConversions",
+  "-language:experimental.macros"
+)
 
 lazy val metaMacroSettings: Seq[Def.Setting[_]] = Seq(
   // New-style macro annotations are under active development.  As a result, in
@@ -42,4 +51,7 @@ lazy val macros = project.settings(
 )
 
 // Use macros in this project.
-lazy val app = project.settings(metaMacroSettings).dependsOn(macros)
+lazy val app = project
+  .settings(metaMacroSettings)
+  .dependsOn(macros)
+  .settings(Seq(scalacOptions ++= compilerOptions))
