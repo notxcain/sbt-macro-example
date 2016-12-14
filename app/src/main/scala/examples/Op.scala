@@ -23,53 +23,11 @@ trait Logging[F[_]] {
   def info(value: String): F[Unit]
 }
 
+@free
 trait UserInteraction[F[_]] {
   def readLn(prompt: String): F[String]
 
   def writeLn(s: String): F[Unit]
-}
-
-object UserInteraction {
-  def apply[F[_]](implicit instance: UserInteraction[F]): UserInteraction[F] = instance
-
-  sealed abstract class UserInteractionFree[A] extends Product with Serializable
-
-  object UserInteractionFree {
-
-    final case class ReadLn(prompt: String) extends UserInteractionFree[String]
-
-    final case class WriteLn(s: String) extends UserInteractionFree[Unit]
-
-  }
-
-  def fromFunctionK[F[_]](
-    f: _root_.cats.arrow.FunctionK[UserInteractionFree, F]
-  ): UserInteraction[F] = new UserInteraction[F] {
-    def readLn(prompt: String): F[String] = f(UserInteractionFree.ReadLn(prompt))
-
-    def writeLn(s: String): F[Unit] = f(UserInteractionFree.WriteLn(s))
-  }
-
-  def toFunctionK[F[_]](
-    ops: UserInteraction[F]
-  ): _root_.cats.arrow.FunctionK[UserInteractionFree, F] =
-    new _root_.cats.arrow.FunctionK[UserInteractionFree, F] {
-      def apply[A](op: UserInteractionFree[A]): F[A] = op match {
-        case UserInteractionFree.ReadLn(prompt) => ops.readLn(prompt)
-        case UserInteractionFree.WriteLn(s) => ops.writeLn(s)
-      }
-    }
-
-  private sealed trait FreeHelper686[F[_]] {
-    type Out[A] = Free[F, A]
-  }
-
-  implicit def freeInstance[F[_]](
-    implicit inject: _root_.cats.free.Inject[UserInteractionFree, F]
-  ): UserInteraction[FreeHelper686[F]#Out] =
-    fromFunctionK(new _root_.cats.arrow.FunctionK[UserInteractionFree, FreeHelper686[F]#Out] {
-      def apply[A](op: UserInteractionFree[A]): Free[F, A] = _root_.cats.free.Free.inject(op)
-    })
 }
 
 object StateKeyValueStore extends KeyValueStore[State[Map[String, String], ?]] {
