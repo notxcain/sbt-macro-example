@@ -1,10 +1,13 @@
 package examples
 
 import cats.data.{ Coproduct, State, StateT }
-import cats.free.Free
+import cats.free.{ Free, Inject }
 import cats.implicits._
-import cats.{ Applicative, Eval, Monad }
+import cats.{ Applicative, Eval, Monad, data }
 import examples.Logging.LoggingFree
+import examples.UserInteraction.UserInteractionFree
+
+import scala.io.StdIn
 
 @value class PurchaseOrderId
 @value class UserId
@@ -25,6 +28,55 @@ trait Logging[F[_]] {
   def info(value: String): F[Unit]
 }
 
+trait UserInteraction[F[_]] {
+  def readLn(prompt: String): F[String]
+
+  def writeLn(s: String): F[Unit]
+}
+
+object UserInteraction {
+  def apply[F[_]](implicit instance: UserInteraction[F]): UserInteraction[F] = instance
+
+  sealed abstract class UserInteractionFree[A] extends Product with Serializable
+
+  object UserInteractionFree {
+
+    final case class ReadLn(prompt: String) extends UserInteractionFree[String]
+
+    final case class WriteLn(s: String) extends UserInteractionFree[Unit]
+
+  }
+
+  def fromFunctionK[F[_]](
+    f: _root_.cats.arrow.FunctionK[UserInteractionFree, F]
+  ): UserInteraction[F] = new UserInteraction[F] {
+    def readLn(prompt: String): F[String] = f(UserInteractionFree.ReadLn(prompt))
+
+    def writeLn(s: String): F[Unit] = f(UserInteractionFree.WriteLn(s))
+  }
+
+  def toFunctionK[F[_]](
+    ops: UserInteraction[F]
+  ): _root_.cats.arrow.FunctionK[UserInteractionFree, F] =
+    new _root_.cats.arrow.FunctionK[UserInteractionFree, F] {
+      def apply[A](op: UserInteractionFree[A]): F[A] = op match {
+        case UserInteractionFree.ReadLn(prompt) => ops.readLn(prompt)
+        case UserInteractionFree.WriteLn(s) => ops.writeLn(s)
+      }
+    }
+
+  private sealed trait FreeHelper686[F[_]] {
+    type Out[A] = Free[F, A]
+  }
+
+  implicit def freeInstance[F[_]](
+    implicit inject: _root_.cats.free.Inject[UserInteractionFree, F]
+  ): UserInteraction[FreeHelper686[F]#Out] =
+    fromFunctionK(new _root_.cats.arrow.FunctionK[UserInteractionFree, FreeHelper686[F]#Out] {
+      def apply[A](op: UserInteractionFree[A]): Free[F, A] = _root_.cats.free.Free.inject(op)
+    })
+}
+
 object StateKeyValueStore extends KeyValueStore[State[Map[String, String], ?]] {
   override def setValue(key: String, value: String): State[Map[String, String], Unit] =
     StateT.modify[Eval, Map[String, String]](_.updated(key, value))
@@ -41,24 +93,56 @@ class ConsoleLogging[F[_]: Applicative] extends Logging[F] {
     Applicative[F].pure(print(s"INFO: $value\n"))
 }
 
+class ConsoleUserInteraction[F[_]: Applicative] extends UserInteraction[F] {
+  override def readLn(prompt: String): F[String] = Applicative[F].pure(StdIn.readLine(prompt))
+
+  override def writeLn(s: String): F[Unit] = Applicative[F].pure(println(s))
+}
+
 object App {
   import examples.KeyValueStore._
   def main(args: Array[String]): Unit = {
 
-    def program[F[_]: Monad: KeyValueStore: Logging]: F[Option[String]] =
+    def setAndGetPreviosValue[F[_]: Monad: KeyValueStore: Logging](
+      key: String,
+      value: String
+    ): F[Option[String]] =
       for {
-        _ <- KeyValueStore[F].setValue("env", "test")
-        _ <- Logging[F].debug("I set env = test")
-        value <- KeyValueStore[F].getValue("env")
-        _ <- Logging[F].info(s"I fetched $value")
-      } yield value
+        previous <- KeyValueStore[F].getValue(key)
+        _ <- Logging[F].info(s"Was $key = $previous")
+        _ <- Logging[F].debug(s"Setting $key to $value")
+        _ <- KeyValueStore[F].setValue(key, value)
+      } yield previous
 
-    val freeProgram = program[Free[Coproduct[KeyValueStoreFree, LoggingFree, ?], ?]]
+    def program[F[_]: Monad: KeyValueStore: Logging: UserInteraction]: F[Unit] =
+      for {
+        key <- UserInteraction[F].readLn("Enter key: ")
+        value <- UserInteraction[F].readLn("Enter value: ")
+        previous <- setAndGetPreviosValue[F](key, value)
+        _ <- UserInteraction[F].writeLn(
+              previous.map(s => s"Previous value was $s").getOrElse("Previous value was not set")
+            )
+        _ <- program[F]
+      } yield ()
+
+    type Algebra[A] =
+      Coproduct[KeyValueStoreFree, Coproduct[LoggingFree, UserInteractionFree, ?], A]
+
+    implicit val ev: Inject[UserInteractionFree, Algebra] = Inject.catsFreeRightInjectInstance(
+      Inject.catsFreeRightInjectInstance(Inject.catsFreeReflexiveInjectInstance)
+    )
+
+    val freeProgram = program[Free[Algebra, ?]]
+
+    val keyValueStoreFreeInterpreter = KeyValueStore.toFunctionK(StateKeyValueStore)
+    val loggingFreeInterpreter =
+      Logging.toFunctionK(new ConsoleLogging[State[Map[String, String], ?]])
+    val userInteractionFreeInterpreter = UserInteraction.toFunctionK(
+      new ConsoleUserInteraction[cats.data.State[Map[String, String], ?]]
+    )
 
     val k =
-      KeyValueStore
-        .toFunctionK(StateKeyValueStore)
-        .or(Logging.toFunctionK(new ConsoleLogging[State[Map[String, String], ?]]))
+      keyValueStoreFreeInterpreter.or(loggingFreeInterpreter.or(userInteractionFreeInterpreter))
 
     val out =
       freeProgram.foldMap(k)
