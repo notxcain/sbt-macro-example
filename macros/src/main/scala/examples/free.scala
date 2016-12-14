@@ -68,7 +68,7 @@ object FreeMacro {
        """
       ,
         q"""
-           private sealed trait $helperName[F[_]] {
+           type $helperName[F[_]] = {
              type Out[A] = _root_.cats.free.Free[F, A]
            }
          """
